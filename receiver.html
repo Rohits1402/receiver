@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Game Frame Receiver</title>
+  <style>
+    body {
+      background: black;
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let img = new Image();
+let lastFrameTime = 0;
+
+function drawImage(base64) {
+    img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        lastFrameTime = performance.now();
+    };
+    img.src = "data:image/png;base64," + base64;
+}
+
+// Change this to your WebSocket server URL
+const socket = new WebSocket("ws://YOUR-PC-IP:8080");
+
+socket.binaryType = "arraybuffer"; // If sending raw PNG bytes
+
+socket.onmessage = (event) => {
+    if (typeof event.data === "string") {
+        drawImage(event.data); // Base64 string
+    } else {
+        // If sending binary PNG bytes
+        const blob = new Blob([event.data], { type: "image/png" });
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    }
+};
+
+socket.onopen = () => console.log("Connected to WebSocket server");
+socket.onerror = (err) => console.error("WebSocket error:", err);
+socket.onclose = () => console.warn("WebSocket closed");
+
+</script>
+</body>
+</html>
